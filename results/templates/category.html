@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubbles with Gravity and Collision</title>
+    <link  rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
+    <style>
+    </style>
+</head>
+<body>
+    <div class="search-bar">
+        <input class="input" name="text" placeholder="Search articles by keyword..." type="search">
+        <img src="{{ url_for('static', filename='icons/search.png') }}" width="30px" height="30px" class="search-icon">
+        <a class="button-andor">
+            <div class="dot-andor">AND</div>
+        </a>
+        <a class="button-strcont">
+            <div class="dot-strcont">STRICT</div>
+        </a>
+        <div class="select-all">Select All</div>
+        <div class="article-counter"></div>
+    </div>
+    <div class="range_container">
+        <div class="sliders_control">
+            <input class="range" id="fromSlider" type="range"/>
+            <input class="range" id="toSlider" type="range"/>
+            <div class="graduation">
+            </div>
+        </div>
+    </div>
+    <a class="left-arrow-div" target="_blank">
+        <div class="div-left"></div>
+        <img id="left-arrow" src="{{ url_for('static', filename='icons/left-arrow.png') }}" width="75px" height="75px" title="Go back">
+    </a>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bubbles.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/slider.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/api/fetch.js') }}"></script>
+    <script>
+        var category = '{{ categories }}';
+        var input_search = '{{ inputs_search }}';
+        var and = '{{ et }}';
+        var strict = '{{ strict }}';
+        var start_date = new Date('{{ start_date }}');
+        var end_date = new Date('{{ end_date }}');
+        var start_date_query = new Date('{{ start_date_query }}');
+        var end_date_query = new Date('{{ end_date_query }}');
+        var categoriesCount,dates,minTimeStamp,maxTimeStamp;
+        category = category.replace(new RegExp('-', 'g'),'&').replace(new RegExp('_', 'g'),' ');
+        let colors;
+        Array.from(category.split(",")).length >= 1 ? colors = Array.from(category.split(",").map(a => getColor(a))) : colors = getColor(category);
+        if (Array.isArray(colors)){
+            const opacity = 255/Array.from(category.split(",")).length
+            colors.forEach((color,index) => {
+                const rgb = color.match(/\d+/g).map(Number);
+                const r = rgb[0], g = rgb[1], b = rgb[2], a = opacity / 255;
+                colors[index] = { r, g, b, a }
+            })
+            colors = blendColors(colors);
+        }
+        document.body.style.backgroundColor = colors
+        const arrow = document.querySelector('#left-arrow');
+        var mooving = false;
+        goBackEvent();
+        callMaj(start_date_query,end_date_query,category,input_search,and,strict).then((categories) => {
+            [categoriesCount,dates] = categories;
+            minTimeStamp = Math.min(...dates);
+            maxTimeStamp = Math.max(...dates);
+            sliderStart(minTimeStamp,maxTimeStamp,start_date,end_date,category,input_search,and,strict);
+        }).catch((error) => {
+            console.error("Error retrieving categories:", error);
+        });
+
+        const inputSearch = document.querySelector('.input');
+        getSearch();
+        
+        inputSearch.addEventListener('keypress',(e) => {
+            if (e.key === 'Enter') {
+                searchQuery();
+            }
+        });
+        document.querySelector('.search-icon').addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            searchQuery();
+        });
+        const selectAll = document.querySelector('.select-all');
+        all_selected = false;
+        selectAll.addEventListener('click',() => {
+            const bubbles = Array.from(document.querySelectorAll('.bubble'));
+            if (all_selected){
+                all_selected = !all_selected;
+                bubbles.forEach((bubble)=>{
+                    if (bubble.classList.contains('selected')){
+                        bubble.classList.remove('selected');
+                        bubble.style.outline = '';
+                        bubble.style.textDecorationLine = '';
+                        bubble.style.zIndex = 10;
+                    }
+                })
+            } else {
+                all_selected = !all_selected;
+                bubbles.forEach((bubble)=>{
+                    if (!bubble.classList.contains('selected')){
+                        bubble.classList.add('selected');
+                        bubble.style.outline = '10px solid rgba(0, 0, 0, 0.51)';
+                        bubble.style.textDecorationLine = 'underline';
+                        bubble.style.zIndex = 20;
+                    }
+                })
+            }
+
+        })
+    </script>
+</body>
+</html>

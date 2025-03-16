@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubbles with Gravity and Collision</title>
+    <link  rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #window {
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #table-container {
+            width: 90vw; /* Define the container width */
+            height:93vh;
+            top:0;
+            overflow: auto; /* Enable scrolling */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
+
+        table {
+            width: 100%; /* Ensure the table spans the container's width */
+            border-spacing: 0; /* Use border-spacing instead of collapsing borders */
+            table-layout: fixed
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            width: 25%;
+            cursor: pointer;
+            background-color: #f4f4f4;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-size:20px;
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        th[data-sort="asc"]::after {
+            content: " ⇈"; /* Up arrow */
+            font-size: 18px;
+        }
+
+        th[data-sort="desc"]::after {
+            content: " ⇊"; /* Down arrow */
+            font-size: 18px;
+        }
+
+        th[data-sort="none"]::after {
+            content: " ⇅"; /* Up and down arrow */
+            font-size: 18px;
+            color: #aaa;
+        }
+
+        td {
+            border: 1px solid #ddd;
+            word-break:normal;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        p {
+            color:white;
+            width:min-content;
+            padding:5px;
+            border-radius:10px;
+            margin:5px;
+        }
+        /* width */
+        ::-webkit-scrollbar {
+        width: 10px;
+        }
+
+        /* Track */
+        ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+        }
+        
+        /* Handle */
+        ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 5px;
+        }
+
+        /* Handle on hover */
+        ::-webkit-scrollbar-thumb:hover {
+        background: #555; 
+        }
+        .category {
+            
+            display:flex;
+            flex-direction: row;
+        }
+        .title-link {
+            color: #333;
+            text-decoration: none;
+            height:100%;
+            width:100%;
+            display:flex;
+            flex-direction: row;
+        }
+        .external-link {
+            width:20px;
+            height:20px;
+            margin-left:auto;
+            margin-right:0;
+            margin-bottom:auto;
+            margin-top:0;
+        }
+        .article-title {
+            font-weight:bold;
+        }
+        .stat-icon {
+            font-size:20px;
+            position:fixed;
+            z-index: 100;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            top:10px;
+            padding:10px;
+            width:40px;
+            height:40px;
+            outline: none;
+            margin-left:5vw;
+            transition: 1s;
+        }
+        .stat-icon:hover {
+            outline: 1px solid lightgrey;
+            cursor: pointer;
+        }
+        .stat-div {
+            opacity:0;
+            pointer-events: none;
+            background-color: whitesmoke;
+
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            width:90%;
+            height:90%;
+            grid-gap:0px;
+
+            border-radius: 10px;
+            outline: 1px solid lightgrey;
+            position:fixed;
+            top:50%;
+            left:50%;
+            transform: translate(-50%,-50%);
+            z-index: 110;
+        }
+        .canvas {
+            padding:5px;
+            border-radius: 5px;
+            margin:5px;
+        }
+        .canvas:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+        #canvas-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #modal-content {
+            position: relative;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        #modal-canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        #close-modal {
+            position: absolute; /* Position relative to the modal content */
+            top: 40px;
+            right: 130px;
+            background-color: #333; /* Red color for visibility */
+            border: none;
+            color: white;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            font-size: 40px;
+            padding-left:15px;
+            padding-right: 15px;
+            padding-bottom: 5px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        #close-modal:hover {
+            background-color: #555; /* Slightly darker on hover */
+            transform: scale(1.1); /* Add a hover effect */
+        }
+
+        #close-modal:active {
+            transform: scale(0.95); /* Slightly shrink on click */
+        }
+    </style>
+</head>
+<body>
+    <div class="search-bar">
+        <img src="{{ url_for('static', filename='icons/statistics.png') }}" class="stat-icon">
+        <input class="input" name="text" placeholder="Search articles by keyword..." type="search" style="margin-left:10vw">
+        <img src="{{ url_for('static', filename='icons/search.png') }}" width="30px" height="30px" class="search-icon">
+        <a class="button-andor">
+            <div class="dot-andor">AND</div>
+        </a>
+        <a class="button-strcont">
+            <div class="dot-strcont">STRICT</div>
+        </a>
+        <div class="article-counter"></div>
+    </div>
+    <div id="window">
+        <div id="table-container">
+            <table>
+                <thead>
+                  <tr>
+                    <th id="title-header" data-sort="none">Title</th>
+                    <th id="date-header" data-sort="none">Date</th>
+                    <th id="topic-header" data-sort="none">Topic</th>
+                    <th id="category-header" data-sort="none">Category</th>
+                  </tr>
+                </thead>
+                <tbody id="table-body">
+                  <!-- Rows will go here -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+    
+    <a class="left-arrow-div" target="_blank">
+        <div class="div-left"></div>
+        <img id="left-arrow" src="{{ url_for('static', filename='icons/left-arrow.png') }}" style="filter:brightness(0)" width="75px" height="75px" title="Go back">
+    </a>
+    <div class="stat-div">
+        <canvas  class="canvas" id="number-article-chart"></canvas>
+        <canvas  class="canvas" id="categories-count-chart"></canvas>
+        <canvas  class="canvas" id="topics-count-chart"></canvas>
+        <canvas  class="canvas" id="last-week-chart"></canvas>
+        <canvas  class="canvas" id="5"></canvas>
+        <canvas  class="canvas" id="6"></canvas>
+        <canvas  class="canvas" id="7"></canvas>
+        <canvas  class="canvas" id="8"></canvas>
+    </div>
+    <div id="canvas-modal" style="display: none;">
+        <div id="modal-content">
+            <canvas id="modal-canvas" width="500" height="500"></canvas>
+        </div>
+        <button id="close-modal">&times;</button>
+    </div>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/bubbles.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/slider.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/api/fetch.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/statistics.js') }}"></script>
+    <script>
+        var topics = '{{ topics }}';
+        var input_search = '{{ inputs_search }}';
+        var start_date = new Date('{{ start_date }}');
+        var end_date = new Date('{{ end_date }}');
+        var and = '{{ et }}';
+        var strict = '{{ strict }}';
+        var start_date_query = new Date('{{ start_date_query }}');
+        var end_date_query = new Date('{{ end_date_query }}');
+        var counterArticles = document.querySelector('.article-counter');
+        const statDiv = document.querySelector('.stat-div');
+        const closeModal = document.getElementById('close-modal');
+        const modal = document.getElementById('canvas-modal');
+        const modalCanvas = document.getElementById('modal-canvas');
+        const modalContent = document.getElementById('modal-content');
+        let originalCanvas = null; // To keep track of the canvas being moved
+
+        
+        let instances = [];
+        statDiv.querySelectorAll("*").forEach((node)=>{
+            const canvasId = node.id;
+            if (canvasId == "overlayed"){
+                return;
+            }
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            let instance = new Chart(ctx, {
+                type: 'bar', 
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'No Data Yet',
+                        data: [], 
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: false
+                }
+            });
+            instances.push(instance);
+            node.addEventListener('click', ()=>{
+                originalCanvas = node;
+                const rect = originalCanvas.getBoundingClientRect();
+                const originalChart = Chart.getChart(originalCanvas);
+                const clonedCanvas = document.createElement('canvas');
+                
+                clonedCanvas.width = rect.width * 4;
+                clonedCanvas.height = rect.height * 3;
+
+                modalContent.innerHTML = '';
+                modalContent.appendChild(clonedCanvas);
+
+                const clonedCtx = clonedCanvas.getContext('2d');
+                new Chart(clonedCtx, {
+                    type: originalChart.config.type, 
+                    data: originalChart.data,
+                    options: {
+                        responsive: false,           // Disable responsiveness
+                        maintainAspectRatio: false,  // Allow resizing without maintaining aspect ratio
+                    },
+                });
+
+                // Show the modal
+                modal.style.display = 'flex';
+            })
+        });
+        closeModal.addEventListener('click', () => {
+            modal.style.display = 'none';
+            originalCanvas = null;
+        });
+        var data = []
+        CallArticleList(start_date_query,end_date_query,topics,input_search,and,strict).then((articles)=>{
+            articles.forEach((article)=>data.push(article));
+            renderTable(data);
+        })
+        let currentSort = { column: '', order: 'asc' };
+        function renderTable(data) {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // Clear previous rows
+
+            data.forEach(article => {
+                const row = document.createElement('tr');
+                categories = JSON.parse(article.category.replace(/'/g, '"'));
+                categoryHTML = ''
+                categories.forEach((category)=>{
+                    categoryHTML += `<p style="background-color: ${getColor(category)}">${category.replace(new RegExp(' ','g'),'_')}</p>`
+                })
+                row.innerHTML = `
+                    <td class="article-title">
+                        <a class="title-link" href="${article.href}">${article.title.replace(/"/g, '')}
+                            <img src="{{ url_for('static', filename='icons/external-link.png') }}" class="external-link">
+                        </a>
+                    </td>
+                    <td>${new Date(article.date).toLocaleDateString()}</td>
+                    <td>${article.topic}</td>
+                    <td>
+                        <div class="category">${categoryHTML}</div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            let total = data.length;
+            counterArticles.innerHTML = `Total: ${total} articles`;
+            setCanva(data,instances).then((result)=>{
+                const new_instance = result;
+                instances = new_instance;
+            });
+            statDiv.querySelectorAll("*").forEach((node)=>{
+                const parent = node.parentElement;
+                const width = parent.offsetWidth;
+                const height = parent.offsetHeight;
+                resizeCanvas(node,width/4.2,height/3);
+            });
+        }
+
+        function sortTable(column) {
+            // Determine sort order (toggle between ASC and DESC)
+            if (currentSort.column === column) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.order = 'asc';
+            }
+
+            // Sort articles
+            data.sort((a, b) => {
+                let valA = a[column];
+                let valB = b[column];
+
+                // Handle dates
+                if (column === 'date') {
+                    valA = new Date(valA);
+                    valB = new Date(valB);
+                }
+
+                if (currentSort.order === 'asc') {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            // Re-render the table
+            renderTable(data);
+        }
+        document.querySelectorAll("th").forEach((header) => {
+            header.addEventListener("click", () => {
+                const column = header.id.split("-")[0]; // Extract the column name from the header id
+                const currentSort = header.getAttribute("data-sort");
+                const newSort = currentSort === "asc" ? "desc" : "asc";
+
+                // Reset all headers
+                document.querySelectorAll("th").forEach((th) => th.setAttribute("data-sort", "none"));
+
+                // Set new sort on clicked header
+                header.setAttribute("data-sort", newSort);
+
+                // Sort the table
+                sortTable(column, newSort);
+            });
+        });
+        
+        getSearch();
+        const inputSearch = document.querySelector('.input');
+        inputSearch.addEventListener('keypress',(e) => {
+            if (e.key === 'Enter') {
+                searchArticles(input_search,and,strict).then((result) => {
+                    const new_data = result;
+                    data = new_data;
+                    renderTable(data);
+                });
+            }
+        });
+        document.querySelector('.search-icon').addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            searchArticles(input_search,and,strict).then((result) => {
+                const new_data = result;
+                data = new_data;
+                renderTable(data);
+            });
+        });
+        const arrow = document.querySelector('#left-arrow');
+        var mooving = false;
+        goBackEvent();
+
+        const statIcon = document.querySelector('.stat-icon');
+        var statVisible = false;
+        statIcon.addEventListener('click',()=>{
+            if (!statVisible) {
+                statVisible = true;
+                statDiv.style.opacity = "100";
+                statDiv.style.pointerEvents = "all";
+                document.body.querySelectorAll("*").forEach((node)=>{
+                    if (!statDiv.contains(node) && node.className != statDiv.className && !modal.contains(node) && node.id != modal.id) {
+                        node.style.filter = 'blur(2px) saturate(0)';
+                        node.style.pointerEvents = 'none';
+                    }
+                })
+            }
+        })
+        document.addEventListener('click',(event)=>{
+            if(statVisible){
+                if (!statDiv.contains(event.target) && event.target.className != statIcon.className && !modal.contains(event.target) && event.target.id != modal.id) {
+                    statVisible = false;
+                    document.body.querySelectorAll("*").forEach((node)=>{
+                        if (!statDiv.contains(node) && node.className != statDiv.className){
+                            node.style.filter = '';
+                            if (node.id == 'left-arrow'){
+                                node.style.filter = 'brightness(0)';
+                            }
+                            node.style.pointerEvents = 'all';
+                        }
+                    })
+                    statDiv.style.opacity = "0";
+                    statDiv.style.pointerEvents = "none";
+                }
+            }
+        })
+    </script>
+</body>
+</html>
