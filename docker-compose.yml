@@ -1,0 +1,47 @@
+services:
+  app:
+    build: ./app/
+    container_name: app
+    depends_on:
+      scraper:
+        condition: service_completed_successfully
+    ports:
+      - 25565:25565
+    volumes:
+        - results:/results
+
+  scraper:
+    build: ./scraper/
+    image: mcr.microsoft.com/playwright
+    container_name: scraper
+    depends_on:
+      - ollama
+    ports:
+      - 80:80
+    volumes:
+        - results:/results
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      x_info_scrap: ${x_info_scrap}
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - 11434:11434
+    volumes:
+        - ./ollama/ollama:/root/.ollama
+        - ./entrypoint.sh:/entrypoint.sh
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
+volumes:
+  results:
